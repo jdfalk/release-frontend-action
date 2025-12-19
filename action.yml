@@ -1,5 +1,5 @@
 # file: action.yml
-# version: 1.0.0
+# version: 1.1.0
 # guid: 5a8e3f9b-4d2c-4e7a-b1f6-9c3e7a2d4b8f
 
 name: "Release Frontend Application"
@@ -71,12 +71,55 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: Detect dependency lock file
+      id: dependency-file
+      shell: bash
+      run: |
+        set -euo pipefail
+        WORKDIR="${{ inputs.working-directory }}"
+        MANAGER="${{ inputs.package-manager }}"
+        case "$MANAGER" in
+          npm)
+            CANDIDATES=(
+              "${WORKDIR}/package-lock.json"
+              "${WORKDIR}/npm-shrinkwrap.json"
+            )
+            ;;
+          yarn)
+            CANDIDATES=("${WORKDIR}/yarn.lock")
+            ;;
+          pnpm)
+            CANDIDATES=("${WORKDIR}/pnpm-lock.yaml")
+            ;;
+          *)
+            echo "::error::Unsupported package manager: ${MANAGER}"
+            exit 1
+            ;;
+        esac
+
+        for file in "${CANDIDATES[@]}"; do
+          if [ -f "$file" ]; then
+            echo "path=$file" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+        done
+
+        echo "::notice::No dependency lock file found; skipping cache setup."
+        echo "path=" >> "$GITHUB_OUTPUT"
+
     - name: Set up Node.js
+      if: steps.dependency-file.outputs.path != ''
       uses: actions/setup-node@v4
       with:
         node-version: ${{ inputs.node-version }}
         cache: ${{ inputs.package-manager }}
-        cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
+        cache-dependency-path: ${{ steps.dependency-file.outputs.path }}
+
+    - name: Set up Node.js (no cache)
+      if: steps.dependency-file.outputs.path == ''
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
 
     - name: Install dependencies
       working-directory: ${{ inputs.working-directory }}

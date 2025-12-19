@@ -77,7 +77,6 @@ runs:
         node-version: ${{ inputs.node-version }}
         cache: ${{ inputs.package-manager }}
         cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
-      shell: bash
 
     - name: Install dependencies
       shell: bash
@@ -131,7 +130,6 @@ runs:
         name: ${{ inputs.artifact-name }}
         path: ${{ steps.build-info.outputs.path }}
         retention-days: ${{ inputs.artifact-retention-days }}
-      shell: bash
 
     - name: Output summary
       shell: bash

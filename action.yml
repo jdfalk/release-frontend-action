@@ -1,0 +1,147 @@
+# file: action.yml
+# version: 1.0.0
+# guid: 5a8e3f9b-4d2c-4e7a-b1f6-9c3e7a2d4b8f
+
+name: "Release Frontend Application"
+description: "Build and release frontend applications (React, Vue, Angular, etc.)"
+author: "jdfalk"
+
+branding:
+  icon: "globe"
+  color: "purple"
+
+inputs:
+  node-version:
+    description: "Node.js version to use"
+    required: false
+    default: "20"
+  package-manager:
+    description: "Package manager (npm, yarn, pnpm)"
+    required: false
+    default: "npm"
+  working-directory:
+    description: "Working directory for the project"
+    required: false
+    default: "."
+  build-command:
+    description: "Build command"
+    required: false
+    default: "npm run build"
+  test-command:
+    description: "Test command"
+    required: false
+    default: "npm test"
+  lint-command:
+    description: "Lint command"
+    required: false
+    default: "npm run lint"
+  run-tests:
+    description: "Run tests before building"
+    required: false
+    default: "true"
+  run-lint:
+    description: "Run linter before building"
+    required: false
+    default: "true"
+  build-output-dir:
+    description: "Build output directory"
+    required: false
+    default: "dist"
+  create-artifact:
+    description: "Create build artifact"
+    required: false
+    default: "true"
+  artifact-name:
+    description: "Artifact name"
+    required: false
+    default: "frontend-build"
+  artifact-retention-days:
+    description: "Artifact retention days"
+    required: false
+    default: "90"
+
+outputs:
+  build-path:
+    description: "Path to build output"
+    value: ${{ steps.build-info.outputs.path }}
+  artifact-url:
+    description: "URL of the uploaded artifact"
+    value: ${{ steps.upload.outputs.artifact-url }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: ${{ inputs.package-manager }}
+        cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
+      shell: bash
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        case "${{ inputs.package-manager }}" in
+          npm)
+            npm ci
+            ;;
+          yarn)
+            yarn install --frozen-lockfile
+            ;;
+          pnpm)
+            pnpm install --frozen-lockfile
+            ;;
+          *)
+            echo "Unsupported package manager: ${{ inputs.package-manager }}"
+            exit 1
+            ;;
+        esac
+
+    - name: Run linter
+      if: inputs.run-lint == 'true'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: ${{ inputs.lint-command }}
+
+    - name: Run tests
+      if: inputs.run-tests == 'true'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: ${{ inputs.test-command }}
+
+    - name: Build application
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: ${{ inputs.build-command }}
+
+    - name: Set build info
+      id: build-info
+      shell: bash
+      run: |
+        BUILD_PATH="${{ inputs.working-directory }}/${{ inputs.build-output-dir }}"
+        echo "path=$BUILD_PATH" >> $GITHUB_OUTPUT
+
+    - name: Upload build artifact
+      id: upload
+      if: inputs.create-artifact == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ steps.build-info.outputs.path }}
+        retention-days: ${{ inputs.artifact-retention-days }}
+      shell: bash
+
+    - name: Output summary
+      shell: bash
+      run: |
+        echo "## Frontend Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Node.js:** ${{ inputs.node-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Package Manager:** ${{ inputs.package-manager }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Build Output:** ${{ steps.build-info.outputs.path }}" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ inputs.create-artifact }}" == "true" ]; then
+          echo "**Artifact:** ${{ inputs.artifact-name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Retention:** ${{ inputs.artifact-retention-days }} days" >> $GITHUB_STEP_SUMMARY
+        fi

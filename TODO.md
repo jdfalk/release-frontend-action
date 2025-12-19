@@ -1,5 +1,5 @@
 <!-- file: TODO.md -->
-<!-- version: 1.0.0 -->
+<!-- version: 1.0.1 -->
 <!-- guid: 12345678-1234-1234-1234-123456789005 -->
 
 # TODO - release-frontend-action
@@ -58,7 +58,7 @@ Error: README.md not found
 ---
 
 ### #todo Fix Cache Dependencies Error
-**Status:** Open
+**Status:** Resolved
 **Priority:** High
 **Issue:** Cache setup failing because dependency file path not resolved
 
@@ -67,19 +67,15 @@ Error: README.md not found
 ##[error]Some specified paths were not resolved, unable to cache dependencies
 ```
 
-**Root Cause:**
-- The test setup may not be creating proper package.json or lock files
-- Cache action cannot find dependency manifests to cache
-- Test project structure may be incomplete
+**Fix Applied:**
+- Action now detects lock files and skips cache setup when none are present to
+  avoid resolution failures.
+- CI test project now generates a package-lock.json before invoking the action,
+  so the cache path is valid.
 
-**Fix Required:**
-- Ensure test project has proper package.json and lock file
-- Configure cache action with correct paths
-- Verify cache key generation works correctly
-
-**Files to Check:**
-- `.github/workflows/ci.yml` - Cache configuration
-- Test project setup scripts
+**Files Updated:**
+- `action.yml`
+- `.github/workflows/ci.yml`
 
 ---
 

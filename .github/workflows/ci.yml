@@ -1,5 +1,5 @@
 # file: .github/workflows/ci.yml
-# version: 1.0.0
+# version: 1.1.0
 # guid: a7b8c9d0-e1f2-3456-a012-567890123456
 
 name: CI
@@ -83,3 +83,10 @@ jobs:
         uses: ibiqlik/action-yamllint@v3
         with:
           file_or_dir: action.yml
+          config_data: |
+            extends: default
+            rules:
+              line-length:
+                max: 120
+                level: warning
+              document-start: disable

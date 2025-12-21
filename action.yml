@@ -181,7 +181,7 @@ runs:
     - name: Upload build artifact
       id: upload
       if: inputs.create-artifact == 'true'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ inputs.artifact-name }}
         path: ${{ steps.build-info.outputs.path }}

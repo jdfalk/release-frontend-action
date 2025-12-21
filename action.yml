@@ -1,5 +1,5 @@
 # file: action.yml
-# version: 1.1.0
+# version: 1.1.1
 # guid: 5a8e3f9b-4d2c-4e7a-b1f6-9c3e7a2d4b8f
 
 name: "Release Frontend Application"
@@ -123,23 +123,34 @@ runs:
 
     - name: Install dependencies
       working-directory: ${{ inputs.working-directory }}
-      run: |
-        case "${{ inputs.package-manager }}" in
-          npm)
-            npm ci
-            ;;
-          yarn)
-            yarn install --frozen-lockfile
-            ;;
-          pnpm)
-            pnpm install --frozen-lockfile
-            ;;
-          *)
-            echo "Unsupported package manager: ${{ inputs.package-manager }}"
-            exit 1
-            ;;
-        esac
       shell: bash
+      run: |
+        set -euo pipefail
+        LOCK_PATH="${{ steps.dependency-file.outputs.path }}"
+        MANAGER="${{ inputs.package-manager }}"
+        if [ "$MANAGER" = "npm" ]; then
+          if [ -n "$LOCK_PATH" ]; then
+            npm ci
+          else
+            echo "No lockfile; using npm install fallback"
+            npm install --no-audit --no-fund
+          fi
+        elif [ "$MANAGER" = "yarn" ]; then
+          if [ -n "$LOCK_PATH" ]; then
+            yarn install --frozen-lockfile
+          else
+            yarn install --non-interactive
+          fi
+        elif [ "$MANAGER" = "pnpm" ]; then
+          if [ -n "$LOCK_PATH" ]; then
+            pnpm install --frozen-lockfile
+          else
+            pnpm install
+          fi
+        else
+          echo "Unsupported package manager: $MANAGER"
+          exit 1
+        fi
 
     - name: Run linter
       if: inputs.run-lint == 'true'
@@ -153,8 +164,10 @@ runs:
       run: ${{ inputs.test-command }}
       shell: bash
 
-    - name: Build application
+    - name: Build application (production)
       working-directory: ${{ inputs.working-directory }}
+      env:
+        NODE_ENV: production
       run: ${{ inputs.build-command }}
       shell: bash
 

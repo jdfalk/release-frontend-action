@@ -109,7 +109,7 @@ runs:
 
     - name: Set up Node.js
       if: steps.dependency-file.outputs.path != ''
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: ${{ inputs.node-version }}
         cache: ${{ inputs.package-manager }}
@@ -117,7 +117,7 @@ runs:
 
     - name: Set up Node.js (no cache)
       if: steps.dependency-file.outputs.path == ''
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: ${{ inputs.node-version }}
 

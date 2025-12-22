@@ -29,7 +29,7 @@ action.yml:144:81: [error] line too long (98 > 80 characters) (line-length)
 **Files to Fix:**
 - `action.yml` - All identified long lines
 
-**Log File:** `/Users/jdfalk/repos/github.com/jdfalk/ghcommon/logs/ci-failures/release-frontend-action_20251218_231439.log`
+**Log File:** `../ghcommon/logs/ci-failures/release-frontend-action_20251218_231439.log`
 
 ---
 

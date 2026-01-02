@@ -4,7 +4,8 @@
 
 # Release Frontend Application Action
 
-Build and release frontend applications with automated testing and artifact creation.
+Build and release frontend applications with automated testing and artifact
+creation.
 
 ## Features
 
@@ -24,19 +25,19 @@ Build and release frontend applications with automated testing and artifact crea
 
 ## Inputs
 
-| Input | Description | Required | Default |
-|-------|-------------|----------|---------|
-| `node-version` | Node.js version | No | `20` |
-| `package-manager` | Package manager | No | `npm` |
-| `working-directory` | Working directory | No | `.` |
-| `build-command` | Build command | No | `npm run build` |
-| `test-command` | Test command | No | `npm test` |
-| `lint-command` | Lint command | No | `npm run lint` |
-| `run-tests` | Run tests | No | `true` |
-| `run-lint` | Run lint | No | `true` |
-| `build-output-dir` | Output directory | No | `dist` |
-| `create-artifact` | Create artifact | No | `true` |
-| `artifact-name` | Artifact name | No | `frontend-build` |
+| Input               | Description       | Required | Default          |
+| ------------------- | ----------------- | -------- | ---------------- |
+| `node-version`      | Node.js version   | No       | `20`             |
+| `package-manager`   | Package manager   | No       | `npm`            |
+| `working-directory` | Working directory | No       | `.`              |
+| `build-command`     | Build command     | No       | `npm run build`  |
+| `test-command`      | Test command      | No       | `npm test`       |
+| `lint-command`      | Lint command      | No       | `npm run lint`   |
+| `run-tests`         | Run tests         | No       | `true`           |
+| `run-lint`          | Run lint          | No       | `true`           |
+| `build-output-dir`  | Output directory  | No       | `dist`           |
+| `create-artifact`   | Create artifact   | No       | `true`           |
+| `artifact-name`     | Artifact name     | No       | `frontend-build` |
 
 ## License
 

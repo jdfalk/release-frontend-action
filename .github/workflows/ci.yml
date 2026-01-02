@@ -49,7 +49,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
-          node-version: "20"
+          node-version: '20'
 
       - name: Create test project
         run: |
@@ -64,14 +64,14 @@ jobs:
       - name: Test action execution
         uses: ./
         with:
-          node-version: "20"
-          package-manager: "npm"
-          working-directory: "./test-project"
-          build-command: "npm install"
-          run-tests: "false"
-          run-lint: "false"
-          build-output-dir: "dist"
-          create-artifact: "false"
+          node-version: '20'
+          package-manager: 'npm'
+          working-directory: './test-project'
+          build-command: 'npm install'
+          run-tests: 'false'
+          run-lint: 'false'
+          build-output-dir: 'dist'
+          create-artifact: 'false'
 
   lint:
     name: Lint

@@ -1,5 +1,5 @@
 <!-- file: TODO.md -->
-<!-- version: 1.0.1 -->
+<!-- version: 1.0.2 -->
 <!-- guid: 12345678-1234-1234-1234-123456789005 -->
 
 # TODO - release-frontend-action
@@ -13,7 +13,7 @@ exceeding 80 character limit
 
 **Error Messages:**
 
-```
+```text
 action.yml:6:81: [error] line too long (82 > 80 characters) (line-length)
 action.yml:122:81: [error] line too long (83 > 80 characters) (line-length)
 action.yml:140:81: [error] line too long (89 > 80 characters) (line-length)
@@ -43,7 +43,7 @@ action.yml:144:81: [error] line too long (98 > 80 characters) (line-length)
 
 **Error Message:**
 
-```
+```text
 Error: README.md not found
 ```
 
@@ -70,7 +70,7 @@ dependency file path not resolved
 
 **Error Message:**
 
-```
+```text
 ##[error]Some specified paths were not resolved, unable to cache dependencies
 ```
 

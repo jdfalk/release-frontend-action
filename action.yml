@@ -1,5 +1,5 @@
 # file: action.yml
-# version: 1.1.1
+# version: 1.2.0
 # guid: 5a8e3f9b-4d2c-4e7a-b1f6-9c3e7a2d4b8f
 
 name: "Release Frontend Application"
@@ -59,11 +59,19 @@ inputs:
     description: "Artifact retention days"
     required: false
     default: "90"
+  use-docker:
+    description: "Run inside the prebuilt Docker image"
+    required: false
+    default: "false"
+  docker-image:
+    description: "Docker image reference (tag or digest) to use when use-docker is true"
+    required: false
+    default: "ghcr.io/jdfalk/release-frontend-action:main"
 
 outputs:
   build-path:
     description: "Path to build output"
-    value: ${{ steps.build-info.outputs.path }}
+    value: ${{ steps.build-info.outputs.path || steps.build-docker.outputs.build-path }}
   artifact-url:
     description: "URL of the uploaded artifact"
     value: ${{ steps.upload.outputs.artifact-url }}
@@ -71,8 +79,59 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: Build frontend (docker)
+      id: build-docker
+      if: inputs.use-docker == 'true'
+      shell: bash
+      env:
+        NODE_VERSION: ${{ inputs.node-version }}
+        PACKAGE_MANAGER: ${{ inputs.package-manager }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        BUILD_COMMAND: ${{ inputs.build-command }}
+        TEST_COMMAND: ${{ inputs.test-command }}
+        LINT_COMMAND: ${{ inputs.lint-command }}
+        RUN_TESTS: ${{ inputs.run-tests }}
+        RUN_LINT: ${{ inputs.run-lint }}
+        BUILD_OUTPUT_DIR: ${{ inputs.build-output-dir }}
+        DOCKER_IMAGE: ${{ inputs.docker-image }}
+        GITHUB_OUTPUT: ${{ env.GITHUB_OUTPUT }}
+        GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+      run: |
+        set -euo pipefail
+
+        if ! command -v docker >/dev/null 2>&1; then
+          echo "::error::Docker is required when use-docker is true."
+          exit 1
+        fi
+
+        touch "$GITHUB_OUTPUT" "$GITHUB_STEP_SUMMARY"
+
+        if ! docker pull "$DOCKER_IMAGE"; then
+          echo "::warning::Pull failed, building $DOCKER_IMAGE locally."
+          docker build --tag "$DOCKER_IMAGE" "${{ github.action_path }}"
+        fi
+
+        docker run --rm \
+          -e NODE_VERSION \
+          -e PACKAGE_MANAGER \
+          -e WORKING_DIRECTORY \
+          -e BUILD_COMMAND \
+          -e TEST_COMMAND \
+          -e LINT_COMMAND \
+          -e RUN_TESTS \
+          -e RUN_LINT \
+          -e BUILD_OUTPUT_DIR \
+          -e GITHUB_OUTPUT \
+          -e GITHUB_STEP_SUMMARY \
+          -v "$GITHUB_OUTPUT:$GITHUB_OUTPUT" \
+          -v "$GITHUB_STEP_SUMMARY:$GITHUB_STEP_SUMMARY" \
+          -v "${{ github.workspace }}:/repo" \
+          -w /repo \
+          "$DOCKER_IMAGE"
+
     - name: Detect dependency lock file
       id: dependency-file
+      if: inputs.use-docker != 'true'
       shell: bash
       run: |
         set -euo pipefail
@@ -108,7 +167,7 @@ runs:
         echo "path=" >> "$GITHUB_OUTPUT"
 
     - name: Set up Node.js
-      if: steps.dependency-file.outputs.path != ''
+      if: inputs.use-docker != 'true' && steps.dependency-file.outputs.path != ''
       uses: actions/setup-node@v4
       with:
         node-version: ${{ inputs.node-version }}
@@ -116,12 +175,13 @@ runs:
         cache-dependency-path: ${{ steps.dependency-file.outputs.path }}
 
     - name: Set up Node.js (no cache)
-      if: steps.dependency-file.outputs.path == ''
+      if: inputs.use-docker != 'true' && steps.dependency-file.outputs.path == ''
       uses: actions/setup-node@v4
       with:
         node-version: ${{ inputs.node-version }}
 
     - name: Install dependencies
+      if: inputs.use-docker != 'true'
       working-directory: ${{ inputs.working-directory }}
       shell: bash
       run: |
@@ -153,18 +213,19 @@ runs:
         fi
 
     - name: Run linter
-      if: inputs.run-lint == 'true'
+      if: inputs.use-docker != 'true' && inputs.run-lint == 'true'
       working-directory: ${{ inputs.working-directory }}
       run: ${{ inputs.lint-command }}
       shell: bash
 
     - name: Run tests
-      if: inputs.run-tests == 'true'
+      if: inputs.use-docker != 'true' && inputs.run-tests == 'true'
       working-directory: ${{ inputs.working-directory }}
       run: ${{ inputs.test-command }}
       shell: bash
 
     - name: Build application (production)
+      if: inputs.use-docker != 'true'
       working-directory: ${{ inputs.working-directory }}
       env:
         NODE_ENV: production
@@ -173,6 +234,7 @@ runs:
 
     - name: Set build info
       id: build-info
+      if: inputs.use-docker != 'true'
       run: |
         BUILD_PATH="${{ inputs.working-directory }}/${{ inputs.build-output-dir }}"
         echo "path=$BUILD_PATH" >> $GITHUB_OUTPUT

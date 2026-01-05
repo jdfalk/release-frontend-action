@@ -5,7 +5,7 @@
 # Release Frontend Application Action
 
 Build and release frontend applications with automated testing and artifact
-creation.
+creation, with optional dockerized execution.
 
 ## Features
 
@@ -23,21 +23,35 @@ creation.
     build-command: npm run build
 ```
 
+### Force Docker Execution
+
+```yaml
+- uses: jdfalk/release-frontend-action@v1
+  with:
+    use-docker: true
+    docker-image: ghcr.io/jdfalk/release-frontend-action:main
+    package-manager: npm
+    build-command: npm run build
+```
+
 ## Inputs
 
-| Input               | Description       | Required | Default          |
-| ------------------- | ----------------- | -------- | ---------------- |
-| `node-version`      | Node.js version   | No       | `20`             |
-| `package-manager`   | Package manager   | No       | `npm`            |
-| `working-directory` | Working directory | No       | `.`              |
-| `build-command`     | Build command     | No       | `npm run build`  |
-| `test-command`      | Test command      | No       | `npm test`       |
-| `lint-command`      | Lint command      | No       | `npm run lint`   |
-| `run-tests`         | Run tests         | No       | `true`           |
-| `run-lint`          | Run lint          | No       | `true`           |
-| `build-output-dir`  | Output directory  | No       | `dist`           |
-| `create-artifact`   | Create artifact   | No       | `true`           |
-| `artifact-name`     | Artifact name     | No       | `frontend-build` |
+| Input                     | Description                                                      | Required | Default                                       |
+| ------------------------- | ---------------------------------------------------------------- | -------- | --------------------------------------------- |
+| `node-version`            | Node.js version                                                  | No       | `20`                                          |
+| `package-manager`         | Package manager (npm, yarn, pnpm)                                | No       | `npm`                                         |
+| `working-directory`       | Working directory                                                | No       | `.`                                           |
+| `build-command`           | Build command                                                    | No       | `npm run build`                               |
+| `test-command`            | Test command                                                     | No       | `npm test`                                    |
+| `lint-command`            | Lint command                                                     | No       | `npm run lint`                                |
+| `run-tests`               | Run tests                                                        | No       | `true`                                        |
+| `run-lint`                | Run lint                                                         | No       | `true`                                        |
+| `build-output-dir`        | Output directory                                                 | No       | `dist`                                        |
+| `create-artifact`         | Create artifact                                                  | No       | `true`                                        |
+| `artifact-name`           | Artifact name                                                    | No       | `frontend-build`                              |
+| `artifact-retention-days` | Artifact retention days                                          | No       | `90`                                          |
+| `use-docker`              | Run the action inside the published container image              | No       | `false`                                       |
+| `docker-image`            | Docker image reference (tag or digest) when `use-docker` is true | No       | `ghcr.io/jdfalk/release-frontend-action:main` |
 
 ## License
 

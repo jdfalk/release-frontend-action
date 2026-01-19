@@ -1,6 +1,7 @@
 <!-- file: README.md -->
 <!-- version: 1.0.0 -->
 <!-- guid: 6d9e3a7b-4f2c-5e8a-1d7f-3c5e2a4b9d1f -->
+<!-- last-edited: 2026-01-19 -->
 
 # Release Frontend Application Action
 

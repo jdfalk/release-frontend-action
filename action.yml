@@ -1,1 +1,263 @@
+# file: action.yml
+# version: 1.3.0
+# guid: 5a8e3f9b-4d2c-4e7a-b1f6-9c3e7a2d4b8f
 
+name: "Release Frontend Application"
+description: "Build and release frontend applications (React, Vue, Angular, etc.)"
+author: "jdfalk"
+
+branding:
+  icon: "globe"
+  color: "purple"
+
+inputs:
+  node-version:
+    description: "Node.js version to use"
+    required: false
+    default: "20"
+  package-manager:
+    description: "Package manager (npm, yarn, pnpm)"
+    required: false
+    default: "npm"
+  working-directory:
+    description: "Working directory for the project"
+    required: false
+    default: "."
+  build-command:
+    description: "Build command"
+    required: false
+    default: "npm run build"
+  test-command:
+    description: "Test command"
+    required: false
+    default: "npm test"
+  lint-command:
+    description: "Lint command"
+    required: false
+    default: "npm run lint"
+  run-tests:
+    description: "Run tests before building"
+    required: false
+    default: "true"
+  run-lint:
+    description: "Run linter before building"
+    required: false
+    default: "true"
+  build-output-dir:
+    description: "Build output directory"
+    required: false
+    default: "dist"
+  create-artifact:
+    description: "Create build artifact"
+    required: false
+    default: "true"
+  artifact-name:
+    description: "Artifact name"
+    required: false
+    default: "frontend-build"
+  artifact-retention-days:
+    description: "Artifact retention days"
+    required: false
+    default: "90"
+  use-docker:
+    description: "Run inside the prebuilt Docker image"
+    required: false
+    default: "false"
+  docker-image:
+    description: "Docker image reference (tag or digest) to use when use-docker is true"
+    required: false
+    default: "ghcr.io/jdfalk/release-frontend-action:main"
+
+outputs:
+  build-path:
+    description: "Path to build output"
+    value: ${{ steps.build-info.outputs.path || steps.build-docker.outputs.build-path }}
+  artifact-url:
+    description: "URL of the uploaded artifact"
+    value: ${{ steps.upload.outputs.artifact-url }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Build frontend (docker)
+      id: build-docker
+      if: inputs.use-docker == 'true'
+      shell: bash
+      env:
+        NODE_VERSION: ${{ inputs.node-version }}
+        PACKAGE_MANAGER: ${{ inputs.package-manager }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        BUILD_COMMAND: ${{ inputs.build-command }}
+        TEST_COMMAND: ${{ inputs.test-command }}
+        LINT_COMMAND: ${{ inputs.lint-command }}
+        RUN_TESTS: ${{ inputs.run-tests }}
+        RUN_LINT: ${{ inputs.run-lint }}
+        BUILD_OUTPUT_DIR: ${{ inputs.build-output-dir }}
+        DOCKER_IMAGE: ${{ inputs.docker-image }}
+        GITHUB_OUTPUT: ${{ env.GITHUB_OUTPUT }}
+        GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+      run: |
+        set -euo pipefail
+
+        if ! command -v docker >/dev/null 2>&1; then
+          echo "::error::Docker is required when use-docker is true."
+          exit 1
+        fi
+
+        touch "$GITHUB_OUTPUT" "$GITHUB_STEP_SUMMARY"
+
+        if ! docker pull "$DOCKER_IMAGE"; then
+          echo "::warning::Pull failed, building $DOCKER_IMAGE locally."
+          docker build --tag "$DOCKER_IMAGE" "${{ github.action_path }}"
+        fi
+
+        docker run --rm \
+          -e NODE_VERSION \
+          -e PACKAGE_MANAGER \
+          -e WORKING_DIRECTORY \
+          -e BUILD_COMMAND \
+          -e TEST_COMMAND \
+          -e LINT_COMMAND \
+          -e RUN_TESTS \
+          -e RUN_LINT \
+          -e BUILD_OUTPUT_DIR \
+          -e GITHUB_OUTPUT \
+          -e GITHUB_STEP_SUMMARY \
+          -v "$GITHUB_OUTPUT:$GITHUB_OUTPUT" \
+          -v "$GITHUB_STEP_SUMMARY:$GITHUB_STEP_SUMMARY" \
+          -v "${{ github.workspace }}:/repo" \
+          -w /repo \
+          "$DOCKER_IMAGE"
+
+    - name: Detect dependency lock file
+      id: dependency-file
+      if: inputs.use-docker != 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        WORKDIR="${{ inputs.working-directory }}"
+        MANAGER="${{ inputs.package-manager }}"
+        case "$MANAGER" in
+          npm)
+            CANDIDATES=(
+              "${WORKDIR}/package-lock.json"
+              "${WORKDIR}/npm-shrinkwrap.json"
+            )
+            ;;
+          yarn)
+            CANDIDATES=("${WORKDIR}/yarn.lock")
+            ;;
+          pnpm)
+            CANDIDATES=("${WORKDIR}/pnpm-lock.yaml")
+            ;;
+          *)
+            echo "::error::Unsupported package manager: ${MANAGER}"
+            exit 1
+            ;;
+        esac
+
+        for file in "${CANDIDATES[@]}"; do
+          if [ -f "$file" ]; then
+            echo "path=$file" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+        done
+
+        echo "::notice::No dependency lock file found; skipping cache setup."
+        echo "path=" >> "$GITHUB_OUTPUT"
+
+    - name: Set up Node.js
+      if: inputs.use-docker != 'true' && steps.dependency-file.outputs.path != ''
+      uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: ${{ inputs.package-manager }}
+        cache-dependency-path: ${{ steps.dependency-file.outputs.path }}
+
+    - name: Set up Node.js (no cache)
+      if: inputs.use-docker != 'true' && steps.dependency-file.outputs.path == ''
+      uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Install dependencies
+      if: inputs.use-docker != 'true'
+      working-directory: ${{ inputs.working-directory }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        LOCK_PATH="${{ steps.dependency-file.outputs.path }}"
+        MANAGER="${{ inputs.package-manager }}"
+        if [ "$MANAGER" = "npm" ]; then
+          if [ -n "$LOCK_PATH" ]; then
+            npm ci
+          else
+            echo "No lockfile; using npm install fallback"
+            npm install --no-audit --no-fund
+          fi
+        elif [ "$MANAGER" = "yarn" ]; then
+          if [ -n "$LOCK_PATH" ]; then
+            yarn install --frozen-lockfile
+          else
+            yarn install --non-interactive
+          fi
+        elif [ "$MANAGER" = "pnpm" ]; then
+          if [ -n "$LOCK_PATH" ]; then
+            pnpm install --frozen-lockfile
+          else
+            pnpm install
+          fi
+        else
+          echo "Unsupported package manager: $MANAGER"
+          exit 1
+        fi
+
+    - name: Run linter
+      if: inputs.use-docker != 'true' && inputs.run-lint == 'true'
+      working-directory: ${{ inputs.working-directory }}
+      run: ${{ inputs.lint-command }}
+      shell: bash
+
+    - name: Run tests
+      if: inputs.use-docker != 'true' && inputs.run-tests == 'true'
+      working-directory: ${{ inputs.working-directory }}
+      run: ${{ inputs.test-command }}
+      shell: bash
+
+    - name: Build application (production)
+      if: inputs.use-docker != 'true'
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        NODE_ENV: production
+      run: ${{ inputs.build-command }}
+      shell: bash
+
+    - name: Set build info
+      id: build-info
+      if: inputs.use-docker != 'true'
+      run: |
+        BUILD_PATH="${{ inputs.working-directory }}/${{ inputs.build-output-dir }}"
+        echo "path=$BUILD_PATH" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Upload build artifact
+      id: upload
+      if: inputs.create-artifact == 'true'
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ steps.build-info.outputs.path }}
+        retention-days: ${{ inputs.artifact-retention-days }}
+
+    - name: Output summary
+      run: |
+        echo "## Frontend Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Node.js:** ${{ inputs.node-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Package Manager:** ${{ inputs.package-manager }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Build Output:** ${{ steps.build-info.outputs.path }}" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ inputs.create-artifact }}" == "true" ]; then
+          echo "**Artifact:** ${{ inputs.artifact-name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Retention:** ${{ inputs.artifact-retention-days }} days" >> $GITHUB_STEP_SUMMARY
+        fi
+      shell: bash

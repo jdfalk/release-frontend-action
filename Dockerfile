@@ -1,4 +1,4 @@
-FROM node:22-alpine@sha256:e4c735aba1a0c90730d57cd90bc48e93eecb9e6bae0fda139d43dcd824746fbb
+FROM node:25-alpine@sha256:bdf2cca6fe3dabd014ea60163eca3f0f7015fbd5c7ee1b0e9ccb4ced6eb02ef4
 
 WORKDIR /repo
 
